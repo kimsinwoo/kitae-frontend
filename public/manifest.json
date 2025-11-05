@@ -1,0 +1,17 @@
+{
+  "name": "KITAE",
+  "short_name": "KITAE",
+  "description": "당신의 스타일을 발견하세요",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/KITAE-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
