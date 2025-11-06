@@ -11,6 +11,13 @@ interface Order {
   total: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentStatus?: string;
+  shippingName?: string;
+  shippingPhone?: string;
+  shippingAddress1?: string;
+  shippingAddress2?: string;
+  shippingCity?: string;
+  shippingZip?: string;
+  shippingCountry?: string;
   items: {
     productId: string;
     productName: string;
@@ -170,6 +177,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         total: o.total || 0,
         status: o.status || 'pending',
         paymentStatus: o.paymentStatus || 'pending',
+        // 배송지 정보 포함
+        shippingName: o.shippingName || o.user?.name || 'Unknown',
+        shippingPhone: o.shippingPhone || o.user?.phone || '',
+        shippingAddress1: o.shippingAddress1 || '',
+        shippingAddress2: o.shippingAddress2 || '',
+        shippingCity: o.shippingCity || '',
+        shippingZip: o.shippingZip || '',
+        shippingCountry: o.shippingCountry || 'South Korea',
         items: o.items?.map((item: any) => ({
           productId: item.productId,
           productName: item.product?.name || 'Unknown Product',

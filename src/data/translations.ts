@@ -12,7 +12,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'nav.signup': 'SIGN UP',
     'nav.cart': 'CART',
     'nav.mypage': 'MY PAGE',
-    
+
     // Home Page
     'home.slogan': 'MINIMALIST FASHION',
     'home.shopNow': 'SHOP NOW',
@@ -55,6 +55,14 @@ export const translations: Record<Language, Record<string, string>> = {
     'login.kakaoSuccess': 'Kakao login successful',
     'login.kakaoResponseError': 'Kakao login response format error',
     'login.kakaoError': 'Kakao login failed',
+    'login.googleLogin': 'LOGIN WITH GOOGLE',
+    'login.googleSuccess': 'Google login successful',
+    'login.googleResponseError': 'Google login response format error',
+    'login.googleError': 'Google login failed',
+    'login.naverLogin': 'LOGIN WITH NAVER',
+    'login.naverSuccess': 'Naver login successful',
+    'login.naverResponseError': 'Naver login response format error',
+    'login.naverError': 'Naver login failed',
     'login.demoAccounts': 'Demo Accounts',
     
     // Sign Up

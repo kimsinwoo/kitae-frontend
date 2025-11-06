@@ -43,6 +43,8 @@ export const AdminDashboard = ({ onNavigate }: AdminDashboardProps) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
 
   // Load data on mount
@@ -422,18 +424,21 @@ export const AdminDashboard = ({ onNavigate }: AdminDashboardProps) => {
                     <TableRow key={product.id}>
                       <TableCell>
                         <img
-                          src={product.image}
+                          src={product.image || (Array.isArray(product.images) ? product.images[0] : (typeof product.images === 'string' ? (JSON.parse(product.images || '[]')?.[0] || '') : '')) || '/placeholder.png'}
                           alt={product.name}
-                          className="w-16 h-16 object-cover"
+                          className="w-16 h-16 object-cover rounded"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.png';
+                          }}
                         />
                       </TableCell>
                       <TableCell className="tracking-[0.05em]">{product.name}</TableCell>
                       <TableCell className="uppercase text-xs tracking-[0.1em]">
-                        {product.category}
+                        {product.category || 'N/A'}
                       </TableCell>
-                      <TableCell>${product.price}</TableCell>
+                      <TableCell>${(product.price / 1300).toFixed(2)}</TableCell>
                       <TableCell className="uppercase text-xs tracking-[0.1em]">
-                        {product.gender}
+                        {product.gender || 'Unisex'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
@@ -508,27 +513,39 @@ export const AdminDashboard = ({ onNavigate }: AdminDashboardProps) => {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {order.paymentStatus === 'paid' ? (
-                          <Select
-                            defaultValue={order.status}
-                            onValueChange={(value) => handleOrderStatusChange(order.id, value)}
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setIsOrderDialogOpen(true);
+                            }}
                           >
-                            <SelectTrigger className="w-[140px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="processing">Processing</SelectItem>
-                              <SelectItem value="shipped">Shipped</SelectItem>
-                              <SelectItem value="delivered">Delivered</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Badge variant="outline" className="bg-gray-100 text-gray-600">
-                            결제 대기
-                          </Badge>
-                        )}
+                            View
+                          </Button>
+                          {order.paymentStatus === 'paid' ? (
+                            <Select
+                              defaultValue={order.status}
+                              onValueChange={(value) => handleOrderStatusChange(order.id, value)}
+                            >
+                              <SelectTrigger className="w-[140px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="processing">Processing</SelectItem>
+                                <SelectItem value="shipped">Shipped</SelectItem>
+                                <SelectItem value="delivered">Delivered</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                              결제 대기
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -537,6 +554,107 @@ export const AdminDashboard = ({ onNavigate }: AdminDashboardProps) => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Order Detail Dialog */}
+        <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="tracking-[0.15em]">ORDER DETAILS</DialogTitle>
+              <DialogDescription>
+                Order ID: {selectedOrder?.id || selectedOrder?.orderNumber}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedOrder && (
+              <div className="space-y-6">
+                {/* Customer Information */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold tracking-[0.1em]">CUSTOMER INFORMATION</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Name</p>
+                      <p className="font-medium">{selectedOrder.customerName || selectedOrder.shippingName}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Email</p>
+                      <p className="font-medium">{selectedOrder.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Phone</p>
+                      <p className="font-medium">{selectedOrder.shippingPhone || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping Address */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold tracking-[0.1em]">SHIPPING ADDRESS</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+                    <p className="font-medium">{selectedOrder.shippingName || selectedOrder.customerName}</p>
+                    <p className="text-muted-foreground">{selectedOrder.shippingPhone || 'N/A'}</p>
+                    <div className="space-y-1">
+                      {selectedOrder.shippingAddress1 && (
+                        <p>{selectedOrder.shippingAddress1}</p>
+                      )}
+                      {selectedOrder.shippingAddress2 && (
+                        <p>{selectedOrder.shippingAddress2}</p>
+                      )}
+                      <p>
+                        {[
+                          selectedOrder.shippingCity,
+                          selectedOrder.shippingZip,
+                          selectedOrder.shippingCountry || 'South Korea'
+                        ].filter(Boolean).join(', ') || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Items */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold tracking-[0.1em]">ORDER ITEMS</h3>
+                  <div className="space-y-3">
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item: any, index: number) => (
+                        <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-medium">{item.productName || 'Unknown Product'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {[item.size, item.color].filter(Boolean).join(' / ') || 'Standard'} - Qty: {item.quantity}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Unit Price: ${((item.price || 0) / 1300).toFixed(2)}
+                            </p>
+                          </div>
+                          <p className="font-semibold">${(((item.price || 0) * (item.quantity || 1)) / 1300).toFixed(2)}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">No items found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Order Summary */}
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span>Total</span>
+                    <span>${((selectedOrder.total ?? 0) / 1300).toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge className={getStatusColor(selectedOrder.status)}>
+                      {selectedOrder.status.toUpperCase()}
+                    </Badge>
+                    {selectedOrder.paymentStatus === 'paid' ? (
+                      <Badge className="bg-green-100 text-green-800">PAID</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800">PENDING</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Product Dialog */}
         {editingProduct && (

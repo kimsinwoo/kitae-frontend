@@ -1,7 +1,11 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-// API Base URL
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+// API Base URL - 환경 변수에서 가져오기
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000';
+if (!(import.meta as any).env?.VITE_API_URL) {
+  console.warn('⚠️ VITE_API_URL is not set in environment variables, using default: http://localhost:5000');
+}
+console.log('🔗 API Base URL:', API_BASE_URL);
 
 // Axios 인스턴스 생성
 const apiClient: AxiosInstance = axios.create({

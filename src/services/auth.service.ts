@@ -69,10 +69,39 @@ export const authService = {
     console.log('🔍 Final actualResponse:', actualResponse);
     
     // 세션 쿠키가 자동으로 설정되므로 user 정보만 저장
+    // JWT 토큰도 저장 (백엔드에서 반환하는 경우)
     if (userData) {
       localStorage.setItem('user', JSON.stringify(userData));
       console.log('✅ User saved in auth service:', userData);
       console.log('✅ localStorage user:', localStorage.getItem('user'));
+      
+      // 토큰이 응답에 포함되어 있으면 저장
+      // 백엔드 응답 구조: { success: true, data: { user: {...}, token: "..." }, message: "..." }
+      // api.post는 response.data를 반환하므로: { success: true, data: { user: {...}, token: "..." }, message: "..." }
+      let token = null;
+      
+      // 응답 구조 디버깅
+      console.log('🔍 Full login response:', JSON.stringify(response, null, 2));
+      
+      // 다양한 응답 구조에서 토큰 찾기
+      if ((response as any).token) {
+        token = (response as any).token;
+        console.log('✅ Token found in response.token');
+      } else if ((response as any).data?.token) {
+        token = (response as any).data.token;
+        console.log('✅ Token found in response.data.token');
+      } else if ((response as any).data?.data?.token) {
+        token = (response as any).data.data.token;
+        console.log('✅ Token found in response.data.data.token');
+      }
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        console.log('✅ Token saved in localStorage');
+      } else {
+        console.warn('⚠️ Token not found in response. Available keys:', Object.keys(response || {}));
+        console.warn('⚠️ response.data keys:', response && (response as any).data ? Object.keys((response as any).data) : 'N/A');
+      }
     } else {
       console.warn('⚠️ User data not found in response');
       console.warn('⚠️ Full response structure:', JSON.stringify(response, null, 2));
@@ -88,25 +117,68 @@ export const authService = {
   },
   
   register: async (userData: RegisterRequest): Promise<AuthResponse> => {
-    const response = await api.post<any>('/auth/register', userData);
-    
-    // Axios 응답 구조 처리
-    let actualResponse = response;
-    if ((response as any).data && (response as any).data.data) {
-      actualResponse = (response as any).data;
+    try {
+      const response = await api.post<any>('/auth/register', userData);
+      
+      // Axios 응답 구조 처리
+      let actualResponse = response;
+      if ((response as any).data && (response as any).data.data) {
+        actualResponse = (response as any).data;
+      }
+      
+      // 세션 쿠키가 자동으로 설정되므로 user 정보만 저장
+      if (actualResponse.success && actualResponse.data?.user) {
+        localStorage.setItem('user', JSON.stringify(actualResponse.data.user));
+      }
+      
+      return actualResponse as AuthResponse;
+    } catch (error: any) {
+      console.error('Register error:', error);
+      
+      // Handle API errors - api.post는 axios error를 throw함
+      if (error.response) {
+        const errorResponse = error.response.data;
+        const status = error.response.status;
+        
+        // Extract error message from response
+        let errorMessage = 'Registration failed';
+        
+        if (errorResponse && typeof errorResponse === 'object') {
+          // Structured error response: { success: false, message: "..." }
+          if (errorResponse.message) {
+            errorMessage = errorResponse.message;
+          } else if (errorResponse.error) {
+            errorMessage = errorResponse.error;
+          }
+        } else if (typeof errorResponse === 'string') {
+          errorMessage = errorResponse;
+        }
+        
+        // Handle specific status codes
+        if (status === 409) {
+          // Conflict - email already exists
+          errorMessage = errorMessage || 'Email already registered';
+        } else if (status === 400) {
+          // Bad Request - validation error
+          errorMessage = errorMessage || 'Invalid registration data';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      // Network error or other errors
+      if (error.message) {
+        throw new Error(error.message);
+      }
+      
+      throw new Error('Failed to register. Please try again.');
     }
-    
-    // 세션 쿠키가 자동으로 설정되므로 user 정보만 저장
-    if (actualResponse.success && actualResponse.data?.user) {
-      localStorage.setItem('user', JSON.stringify(actualResponse.data.user));
-    }
-    
-    return actualResponse as AuthResponse;
   },
   
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     // 세션 쿠키는 서버에서 자동으로 삭제됨
   },
   
@@ -125,8 +197,51 @@ export const authService = {
     }
   },
   
-  kakaoLogin: async (accessToken: string): Promise<AuthResponse> => {
-    const response = await api.post<any>('/auth/kakao', { accessToken });
+  kakaoLogin: async (codeOrToken: string, state?: string, redirectUri?: string): Promise<AuthResponse> => {
+    try {
+      // code와 state가 있으면 OAuth callback, 아니면 직접 access token
+      const body = state 
+        ? { code: codeOrToken, state, redirectUri }
+        : { accessToken: codeOrToken };
+      
+      console.log('🔵 Kakao Login Request:', { hasCode: !!codeOrToken && !!state, hasState: !!state, hasRedirectUri: !!redirectUri });
+      
+      const response = await api.post<any>('/auth/kakao', body);
+      
+      console.log('📦 Kakao Login Response (raw):', response);
+      
+      // api.post는 response.data를 반환하므로 이미 파싱된 상태
+      // 응답 구조: { success: true, data: { user: {...}, token: "..." }, message: "..." }
+      let actualResponse = response;
+      
+      // 중첩된 구조 처리 (lupl과 동일하게)
+      if ((response as any).data && (response as any).data.data) {
+        actualResponse = (response as any).data;
+      }
+      
+      // 세션 쿠키가 자동으로 설정되므로 user 정보와 토큰 저장
+      if (actualResponse.success && actualResponse.data?.user) {
+        localStorage.setItem('user', JSON.stringify(actualResponse.data.user));
+        console.log('✅ User saved in localStorage (Kakao):', actualResponse.data.user);
+        
+        // 토큰 저장
+        if (actualResponse.data?.token) {
+          localStorage.setItem('token', actualResponse.data.token);
+          console.log('✅ Token saved in localStorage (Kakao login)');
+        }
+      } else {
+        console.warn('⚠️ Kakao login response missing user data:', actualResponse);
+      }
+      
+      return actualResponse as AuthResponse;
+    } catch (error: any) {
+      console.error('❌ Kakao Login Error:', error);
+      throw error;
+    }
+  },
+  
+  googleLogin: async (idToken: string): Promise<AuthResponse> => {
+    const response = await api.post<any>('/auth/google', { idToken });
     
     // Axios 응답 구조 처리
     let actualResponse = response;
@@ -134,12 +249,61 @@ export const authService = {
       actualResponse = (response as any).data;
     }
     
-    // 세션 쿠키가 자동으로 설정되므로 user 정보만 저장
+    // 세션 쿠키가 자동으로 설정되므로 user 정보와 토큰 저장
     if (actualResponse.success && actualResponse.data?.user) {
       localStorage.setItem('user', JSON.stringify(actualResponse.data.user));
+      
+      // 토큰 저장
+      if (actualResponse.data?.token) {
+        localStorage.setItem('token', actualResponse.data.token);
+        console.log('✅ Token saved in localStorage (Google login)');
+      }
     }
     
     return actualResponse as AuthResponse;
+  },
+  
+  naverLogin: async (codeOrToken: string, state?: string, redirectUri?: string): Promise<AuthResponse> => {
+    try {
+      // code와 state가 있으면 OAuth callback, 아니면 직접 access token
+      const body = state 
+        ? { code: codeOrToken, state, redirectUri }
+        : { accessToken: codeOrToken };
+      
+      console.log('🟢 Naver Login Request:', { hasCode: !!codeOrToken && !!state, hasState: !!state, hasRedirectUri: !!redirectUri });
+      
+      const response = await api.post<any>('/auth/naver', body);
+      
+      console.log('📦 Naver Login Response (raw):', response);
+      
+      // api.post는 response.data를 반환하므로 이미 파싱된 상태
+      // 응답 구조: { success: true, data: { user: {...}, token: "..." }, message: "..." }
+      let actualResponse = response;
+      
+      // 중첩된 구조 처리 (lupl과 동일하게)
+      if ((response as any).data && (response as any).data.data) {
+        actualResponse = (response as any).data;
+      }
+      
+      // 세션 쿠키가 자동으로 설정되므로 user 정보와 토큰 저장
+      if (actualResponse.success && actualResponse.data?.user) {
+        localStorage.setItem('user', JSON.stringify(actualResponse.data.user));
+        console.log('✅ User saved in localStorage (Naver):', actualResponse.data.user);
+        
+        // 토큰 저장
+        if (actualResponse.data?.token) {
+          localStorage.setItem('token', actualResponse.data.token);
+          console.log('✅ Token saved in localStorage (Naver login)');
+        }
+      } else {
+        console.warn('⚠️ Naver login response missing user data:', actualResponse);
+      }
+      
+      return actualResponse as AuthResponse;
+    } catch (error: any) {
+      console.error('❌ Naver Login Error:', error);
+      throw error;
+    }
   },
   
   // Send verification code for finding user ID
@@ -166,4 +330,3 @@ export const authService = {
     return response;
   },
 };
-
