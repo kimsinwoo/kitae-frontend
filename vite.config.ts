@@ -90,5 +90,6 @@
     server: {
       port: 3000,
       open: true,
+allowedHosts: ['kitae.shop', 'www.kitae.shop'],
     },
   });
