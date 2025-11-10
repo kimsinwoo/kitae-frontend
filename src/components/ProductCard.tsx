@@ -41,7 +41,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) =>
       </div>
       <div className="space-y-1 sm:space-y-2">
         <div className="text-sm sm:text-base tracking-wide">{product.name}</div>
-        <div className="text-sm sm:text-base text-muted-foreground">${product.price}</div>
+        <div className="text-sm sm:text-base text-muted-foreground">₩{product.price.toLocaleString('ko-KR')}</div>
       </div>
     </div>
   );

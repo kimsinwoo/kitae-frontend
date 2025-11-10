@@ -3,6 +3,7 @@ import api from '../utils/api';
 export interface ConfirmPaymentRequest {
   paymentKey: string;
   orderId: string;
+  tossOrderId?: string;
   amount: number;
 }
 

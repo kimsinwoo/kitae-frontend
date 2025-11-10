@@ -39,11 +39,11 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [paymentWidgets, setPaymentWidgets] = useState(null);
 
-  const shippingCostDisplay = cartTotal > 0 ? 15 : 0; // $15 배송비
+  const shippingCostDisplay = cartTotal > 0 ? 3000 : 0; // ₩3,000 배송비
   const total = cartTotal + shippingCostDisplay;
   
-  // totalAmount: 달러를 원화로 변환 (1 USD = 1300 KRW)
-  const totalAmount = Math.floor((total * 1300));
+  // totalAmount: 원화 금액
+  const totalAmount = Math.floor(total);
   
   // Step 3으로 이동하면 결제 위젯 초기화
   useEffect(() => {
@@ -113,9 +113,15 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
     console.log('🛒 Cart length:', cart.length);
     console.log('🛒 Cart total:', cartTotal);
     
+    // 장바구니가 비어있는지 확인
+    if (!cart || cart.length === 0) {
+      toast.error('장바구니가 비어있습니다.');
+      return;
+    }
+    
     setIsPlacingOrder(true);
     try {
-      // 먼저 주문 생성
+      // 먼저 주문 생성 (정상 코드와 동일하게 items 전송하지 않음)
       const orderData = {
         shippingName: `${formData.firstName} ${formData.lastName}`,
         shippingPhone: formData.phone || '',
@@ -130,7 +136,8 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
       
       console.log('📦 Creating order with data:', orderData);
       
-      const orderResponse = await orderService.createOrder(orderData);
+      // items는 optional이므로 전송하지 않음 (백엔드에서 DB Cart에서 가져옴)
+      const orderResponse = await orderService.createOrder(orderData as any);
       console.log('✅ Order created:', orderResponse);
       
       // orderId 추출
@@ -424,7 +431,7 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
                   {cart.map((item) => (
                     <div key={`${item.id}-${item.selectedSize}-${item.selectedColor}`} className="flex justify-between text-sm text-muted-foreground">
                       <span>{item.name} ({item.selectedSize}/{item.selectedColor}) x{item.quantity}</span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      <span>₩{(item.price * item.quantity).toLocaleString('ko-KR')}</span>
                     </div>
                   ))}
                 </div>
@@ -481,15 +488,15 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-muted-foreground">{t('cart.subtotal')}</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>₩{cartTotal.toLocaleString('ko-KR')}</span>
                 </div>
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-muted-foreground">{t('cart.shipping')}</span>
-                  <span>${shippingCostDisplay.toFixed(2)}</span>
+                  <span>₩{shippingCostDisplay.toLocaleString('ko-KR')}</span>
                 </div>
                 <div className="pt-3 sm:pt-4 border-t border-black/10 flex justify-between">
                   <span className="text-sm sm:text-base tracking-[0.15em]">{t('cart.total')}</span>
-                  <span className="text-lg sm:text-xl">${total.toFixed(2)}</span>
+                  <span className="text-lg sm:text-xl">₩{total.toLocaleString('ko-KR')}</span>
                 </div>
               </div>
             </div>

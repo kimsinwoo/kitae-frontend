@@ -481,7 +481,7 @@ export const MyPage = ({ onNavigate }: MyPageProps) => {
                               {item.color} / {item.size} / Qty: {item.quantity}
                             </p>
                           </div>
-                          <p className="tracking-[0.1em]">${item.price}</p>
+                          <p className="tracking-[0.1em]">₩{item.price.toLocaleString('ko-KR')}</p>
                         </div>
                       ))}
                     </div>
@@ -490,7 +490,7 @@ export const MyPage = ({ onNavigate }: MyPageProps) => {
                       <p className="tracking-[0.1em]">
                         {t('mypage.total') || 'TOTAL'}
                       </p>
-                      <p className="text-xl tracking-[0.1em]">${order.total}</p>
+                      <p className="text-xl tracking-[0.1em]">₩{order.total.toLocaleString('ko-KR')}</p>
                     </div>
                   </div>
                 ))}

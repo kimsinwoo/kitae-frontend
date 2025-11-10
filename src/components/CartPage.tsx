@@ -13,7 +13,7 @@ export const CartPage: React.FC<CartPageProps> = ({ onNavigate }) => {
   const { t } = useLanguage();
   const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
 
-  const shippingCost = cartTotal > 0 ? 15 : 0;
+  const shippingCost = cartTotal > 0 ? 3000 : 0;
   const total = cartTotal + shippingCost;
 
   if (cart.length === 0) {
@@ -64,7 +64,7 @@ export const CartPage: React.FC<CartPageProps> = ({ onNavigate }) => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm sm:text-base mb-1 sm:mb-2">${item.price}</p>
+                      <p className="text-sm sm:text-base mb-1 sm:mb-2">₩{item.price.toLocaleString('ko-KR')}</p>
                       <button
                         onClick={() => removeFromCart(item.id)}
                         className="text-muted-foreground hover:text-foreground transition-colors"
@@ -102,15 +102,15 @@ export const CartPage: React.FC<CartPageProps> = ({ onNavigate }) => {
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-muted-foreground">{t('cart.subtotal')}</span>
-                  <span>${cartTotal.toFixed(2)}</span>
+                  <span>₩{cartTotal.toLocaleString('ko-KR')}</span>
                 </div>
                 <div className="flex justify-between text-sm sm:text-base">
                   <span className="text-muted-foreground">{t('cart.shipping')}</span>
-                  <span>${shippingCost.toFixed(2)}</span>
+                  <span>₩{shippingCost.toLocaleString('ko-KR')}</span>
                 </div>
                 <div className="pt-3 sm:pt-4 border-t border-black/10 flex justify-between">
                   <span className="text-sm sm:text-base tracking-[0.15em]">{t('cart.total')}</span>
-                  <span className="text-lg sm:text-xl">${total.toFixed(2)}</span>
+                  <span className="text-lg sm:text-xl">₩{total.toLocaleString('ko-KR')}</span>
                 </div>
               </div>
 

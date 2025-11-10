@@ -231,7 +231,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
                   />
                 </button>
               </div>
-              <p className="text-xl sm:text-2xl">${product.price}</p>
+              <p className="text-xl sm:text-2xl">₩{product.price.toLocaleString('ko-KR')}</p>
             </div>
 
             {/* Size Selection */}
