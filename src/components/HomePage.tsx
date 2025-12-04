@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../context/LanguageContext';
 import { ProductCard } from './ProductCard';
 import { Button } from './ui/button';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+// import { ImageWithFallback } from './figma/ImageWithFallback'; // ⛔️ 더 이상 사용 안 함
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { productService } from '../services/product.service';
 import { toast } from 'sonner';
@@ -13,26 +13,29 @@ interface HomePageProps {
   onNavigate?: (page: string, productId?: string) => void;
 }
 
+interface HeroImage {
+  src: string;
+  position: string; // background-position
+}
+
 const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [products, setProducts] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   useEffect(() => {
     loadFeaturedProducts();
   }, []);
-  
+
   const loadFeaturedProducts = async () => {
     try {
       console.log('🔍 Loading featured products from API...');
       const response = await productService.getFeatured();
       console.log('📦 API Response:', response);
-      
-      // 실제 응답 구조 처리 (타입 무시)
+
       const responseAny: any = response;
-      
-      // Axios 전체 response 객체인 경우
+
       let actualData: any = responseAny;
       if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
         actualData = responseAny.data;
@@ -40,31 +43,27 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       if (actualData?.data?.data) {
         actualData = actualData.data;
       }
-      
-      // Featured products는 배열을 직접 반환하거나, data 안에 있을 수 있음
-      const productsArray = Array.isArray(actualData?.data) 
-        ? actualData.data 
+
+      const productsArray = Array.isArray(actualData?.data)
+        ? actualData.data
         : (Array.isArray(actualData) ? actualData : (actualData?.data?.products || []));
-      
+
       console.log('📦 Actual data:', actualData);
       console.log('📦 Products array:', productsArray);
       console.log('📦 Products count:', productsArray.length);
-      
-      // products 배열이 있으면 표시
+
       if (Array.isArray(productsArray) && productsArray.length > 0) {
         console.log(`✅ Loaded ${productsArray.length} featured products`);
         setProducts(productsArray);
       } else {
         console.warn('⚠️ Invalid API response format:', response);
         console.warn('⚠️ Products array:', productsArray);
-        // API 실패 시 전체 상품에서 추천 상품 가져오기
         await loadAllProducts();
       }
     } catch (error: any) {
       console.error('❌ Failed to load featured products:', error);
       console.error('Error details:', error.response?.data || error.message);
       toast.error(`상품을 불러올 수 없습니다: ${error.message || 'API 연결 실패'}`);
-      // API 실패 시 전체 상품에서 추천 상품 가져오기
       await loadAllProducts();
     }
   };
@@ -72,16 +71,15 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
   const loadAllProducts = async () => {
     try {
       console.log('🔄 Trying to load all products as fallback...');
-      const response = await productService.getAll({ 
-        page: 1, 
+      const response = await productService.getAll({
+        page: 1,
         limit: 20,
         featured: true,
-        status: 'active'
+        status: 'active',
       });
-      
-      // 실제 응답 구조 처리 (타입 무시)
+
       const responseAny: any = response;
-      
+
       let actualData: any = responseAny;
       if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
         actualData = responseAny.data;
@@ -89,35 +87,49 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       if (actualData?.data?.data) {
         actualData = actualData.data;
       }
-      
+
       const productsArray = actualData?.data?.products || actualData?.products || [];
-      
+
       if (Array.isArray(productsArray) && productsArray.length > 0) {
         console.log(`✅ Loaded ${productsArray.length} products as fallback`);
         setProducts(productsArray);
       }
     } catch (error: any) {
       console.error('❌ Fallback also failed:', error);
-      toast.error(t('home.serverConnectionError') || 'Unable to connect to server. Please check if the backend is running.');
+      toast.error(
+        t('home.serverConnectionError') ||
+          'Unable to connect to server. Please check if the backend is running.',
+      );
     }
   };
 
-  const heroImages = [
-    'https://images.unsplash.com/photo-1629922949137-e236a5ab497d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZmFzaGlvbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc2MTU0OTQ3M3ww&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1611702817465-8dedb5de2103?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlZGl0b3JpYWwlMjBmYXNoaW9uJTIwYmxhY2t8ZW58MXx8fHwxNzYxNjMyNDgwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1715541448446-3369e1cc0ee9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbW9kZWwlMjBzdHVkaW98ZW58MXx8fHwxNzYxNTUwMzg2fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1645997098653-ed4519760b10?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb25vY2hyb21lJTIwZmFzaGlvbiUyMHBob3RvZ3JhcGh5fGVufDF8fHx8MTc2MTYzMjQ4MXww&ixlib=rb-4.1.0&q=80&w=1080',
+  // ✅ 이미지 + 위치를 함께 관리
+  const heroImages: HeroImage[] = [
+    {
+      src: 'https://lupl.notion.site/image/attachment%3Aeeb4c73a-95f1-41f6-9451-bd2a30c30bcd%3A%E1%84%80%E1%85%B5%E1%84%90%E1%85%A29725.jpg?table=block&id=2bea6583-95de-801a-9508-cf1697fe3249&spaceId=0293b3b4-0688-440a-bb5a-3948efeda036&width=1250&userId=&cache=v2',
+      position: 'center 15%', // 👉 원하는 대로 조절 (위쪽 보고 싶으면 0~20%)
+    },
+    {
+      src: 'https://lupl.notion.site/image/attachment%3A5c0b7078-5340-454f-bc79-08275b73a315%3A%E1%84%80%E1%85%B5%E1%84%90%E1%85%A210302.jpg?table=block&id=2bea6583-95de-804b-918e-ec1282a3ce45&spaceId=0293b3b4-0688-440a-bb5a-3948efeda036&width=1250&userId=&cache=v2',
+      position: 'center 30%',
+    },
+    {
+      src: 'https://lupl.notion.site/image/attachment%3A200ff74d-320c-4531-8dbc-40b960700cbb%3A%E1%84%80%E1%85%B5%E1%84%90%E1%85%A210597.jpg?table=block&id=2bea6583-95de-8005-9439-c6b1871fa8f5&spaceId=0293b3b4-0688-440a-bb5a-3948efeda036&width=1250&userId=&cache=v2',
+      position: 'center 20%',
+    },
+    {
+      src: 'https://lupl.notion.site/image/attachment%3A8f7eed1b-40ed-4fbd-aed4-3b0a644be0fa%3A%E1%84%80%E1%85%B5%E1%84%90%E1%85%A210887.jpg?table=block&id=2bea6583-95de-80bc-86eb-c36c76a8a7d4&spaceId=0293b3b4-0688-440a-bb5a-3948efeda036&width=1250&userId=&cache=v2',
+      position: 'center 20%',
+    },
   ];
 
   const featuredProducts = products.slice(0, 6);
-  
-  // Transform API product to local format
-  const transformedProducts = featuredProducts.map(p => {
-    // images 처리
+
+  const transformedProducts = featuredProducts.map((p) => {
     let imageUrl = '';
     try {
       if (Array.isArray(p.images)) {
-        imageUrl = p.images[0] || '';
+        imageUrl = p.images[0] ?? '';
       } else if (typeof p.images === 'string') {
         const parsed = JSON.parse(p.images);
         imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
@@ -126,17 +138,16 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       console.warn('Failed to parse images for product:', p.id, e);
     }
 
-    // variants에서 중복 제거하여 size와 color 추출
     const sizesSet = new Set<string>();
     const colorsSet = new Set<string>();
-    
+
     if (p.variants && Array.isArray(p.variants)) {
       p.variants.forEach((v: any) => {
         if (v.size) sizesSet.add(v.size);
         if (v.color) colorsSet.add(v.color);
       });
     }
-    
+
     const sizes = sizesSet.size > 0 ? Array.from(sizesSet) : ['S', 'M', 'L'];
     const colors = colorsSet.size > 0 ? Array.from(colorsSet) : ['Black'];
 
@@ -167,6 +178,8 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
     setCurrentSlide((prev) => (prev - 1 + heroImages.length) % heroImages.length);
   };
 
+  const currentHero = heroImages[currentSlide];
+
   return (
     <div className="min-h-screen">
       {/* Hero Carousel */}
@@ -180,10 +193,15 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
             transition={{ duration: 0.8 }}
             className="absolute inset-0"
           >
-            <ImageWithFallback
-              src={heroImages[currentSlide]}
-              alt={`Hero ${currentSlide + 1}`}
-              className="w-full h-full object-cover"
+            {/* ✅ 여기서 배경 이미지 + 위치 직접 제어 */}
+            <div
+              className="w-full h-full"
+              style={{
+                backgroundImage: `url(${currentHero.src})`,
+                backgroundSize: 'cover',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: currentHero.position, // ← 여기 값으로 위치 완전 컨트롤
+              }}
             />
             <div className="absolute inset-0 bg-black/20" />
           </motion.div>
@@ -256,13 +274,17 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       {/* Brand Philosophy */}
       <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24 xl:py-32">
         <div className="max-w-3xl mx-auto text-center space-y-6 sm:space-y-8">
-          <p className="text-base sm:text-lg lg:text-xl leading-relaxed">{t('home.philosophy')}</p>
+          <p className="text-base sm:text-lg lg:text-xl leading-relaxed">
+            {t('home.philosophy')}
+          </p>
         </div>
       </section>
 
       {/* Featured Collection */}
       <section className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 lg:pb-24">
-        <h2 className="text-center tracking-[0.2em] mb-12 sm:mb-14 lg:mb-16">{t('home.featured')}</h2>
+        <h2 className="text-center tracking-[0.2em] mb-12 sm:mb-14 lg:mb-16">
+          {t('home.featured')}
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10 xl:gap-12">
           {transformedProducts.map((product) => (
             <ProductCard
