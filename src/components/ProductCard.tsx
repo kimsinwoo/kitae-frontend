@@ -1,8 +1,19 @@
 import React from 'react';
-import { Product } from '../data/products';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Heart } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+
+// Product 인터페이스 정의 (백엔드 응답 형식에 맞춤)
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category?: string;
+  gender?: string;
+  sizes?: string[];
+  colors?: string[];
+}
 
 interface ProductCardProps {
   product: Product;

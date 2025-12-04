@@ -30,7 +30,28 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { LogOut, Plus, Edit, Trash2, Package, ShoppingCart, DollarSign, TrendingUp } from 'lucide-react';
-import { Product } from '../data/products';
+// Product 인터페이스 정의 (백엔드 응답 형식에 맞춤)
+interface Product {
+  id?: string;
+  name: string;
+  nameEn?: string;
+  description?: string;
+  price: number;
+  comparePrice?: number;
+  sku?: string;
+  slug?: string;
+  status?: string;
+  featured?: boolean;
+  gender?: string;
+  images?: string[] | string;
+  categoryId?: string;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  variants?: any[];
+}
 import { toast } from 'sonner';
 import api from '../utils/api';
 

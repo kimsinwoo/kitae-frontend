@@ -33,31 +33,23 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       console.log('🔍 Loading featured products from API...');
       const response = await productService.getFeatured();
       console.log('📦 API Response:', response);
+      console.log('📦 Response success:', response.success);
+      console.log('📦 Response data type:', Array.isArray(response.data) ? 'array' : typeof response.data);
+      console.log('📦 Response data length:', Array.isArray(response.data) ? response.data.length : 'N/A');
 
-      const responseAny: any = response;
-
-      let actualData: any = responseAny;
-      if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
-        actualData = responseAny.data;
-      }
-      if (actualData?.data?.data) {
-        actualData = actualData.data;
-      }
-
-      const productsArray = Array.isArray(actualData?.data)
-        ? actualData.data
-        : (Array.isArray(actualData) ? actualData : (actualData?.data?.products || []));
-
-      console.log('📦 Actual data:', actualData);
-      console.log('📦 Products array:', productsArray);
-      console.log('📦 Products count:', productsArray.length);
-
-      if (Array.isArray(productsArray) && productsArray.length > 0) {
-        console.log(`✅ Loaded ${productsArray.length} featured products`);
-        setProducts(productsArray);
+      // product.service.ts에서 이미 정리된 데이터를 반환
+      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+        console.log(`✅ Loaded ${response.data.length} featured products`);
+        console.log('📦 First product sample:', response.data[0]);
+        setProducts(response.data);
       } else {
-        console.warn('⚠️ Invalid API response format:', response);
-        console.warn('⚠️ Products array:', productsArray);
+        console.warn('⚠️ No featured products found, trying fallback...');
+        console.warn('⚠️ Response structure:', {
+          success: response.success,
+          hasData: !!response.data,
+          isArray: Array.isArray(response.data),
+          length: Array.isArray(response.data) ? response.data.length : undefined
+        });
         await loadAllProducts();
       }
     } catch (error: any) {
@@ -78,21 +70,12 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
         status: 'active',
       });
 
-      const responseAny: any = response;
-
-      let actualData: any = responseAny;
-      if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
-        actualData = responseAny.data;
-      }
-      if (actualData?.data?.data) {
-        actualData = actualData.data;
-      }
-
-      const productsArray = actualData?.data?.products || actualData?.products || [];
-
-      if (Array.isArray(productsArray) && productsArray.length > 0) {
-        console.log(`✅ Loaded ${productsArray.length} products as fallback`);
-        setProducts(productsArray);
+      // product.service.ts에서 이미 정리된 데이터를 반환
+      if (response.success && response.data?.products && response.data.products.length > 0) {
+        console.log(`✅ Loaded ${response.data.products.length} products as fallback`);
+        setProducts(response.data.products);
+      } else {
+        console.warn('⚠️ No products found in fallback response');
       }
     } catch (error: any) {
       console.error('❌ Fallback also failed:', error);
@@ -124,24 +107,33 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
   ];
 
   const featuredProducts = products.slice(0, 6);
+  console.log('📦 Featured products count:', featuredProducts.length);
 
   const transformedProducts = featuredProducts.map((p) => {
+    // 이미지 처리 - product.service.ts에서 이미 정규화되었지만 안전하게 처리
     let imageUrl = '';
     try {
-      if (Array.isArray(p.images)) {
-        imageUrl = p.images[0] ?? '';
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        imageUrl = p.images[0];
       } else if (typeof p.images === 'string') {
-        const parsed = JSON.parse(p.images);
-        imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
+        // 문자열인 경우 JSON 파싱 시도
+        try {
+          const parsed = JSON.parse(p.images);
+          imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : (parsed || '');
+        } catch {
+          // JSON이 아닌 경우 문자열 자체를 사용
+          imageUrl = p.images;
+        }
       }
     } catch (e) {
-      console.warn('Failed to parse images for product:', p.id, e);
+      console.warn('Failed to parse images for product:', p.id, p.name, e);
     }
 
+    // Variants에서 size와 color 추출
     const sizesSet = new Set<string>();
     const colorsSet = new Set<string>();
 
-    if (p.variants && Array.isArray(p.variants)) {
+    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
       p.variants.forEach((v: any) => {
         if (v.size) sizesSet.add(v.size);
         if (v.color) colorsSet.add(v.color);
@@ -151,7 +143,7 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
     const sizes = sizesSet.size > 0 ? Array.from(sizesSet) : ['S', 'M', 'L'];
     const colors = colorsSet.size > 0 ? Array.from(colorsSet) : ['Black'];
 
-    return {
+    const transformed = {
       id: p.id,
       name: p.name,
       price: p.price,
@@ -161,7 +153,20 @@ const HomePageContent: React.FC<HomePageProps> = ({ onNavigate }) => {
       sizes,
       colors,
     };
+
+    if (!imageUrl) {
+      console.warn(`⚠️ No image found for product: ${p.id} - ${p.name}`, {
+        images: p.images,
+        imagesType: typeof p.images,
+        isArray: Array.isArray(p.images)
+      });
+    }
+
+    return transformed;
   });
+
+  console.log('📦 Transformed products count:', transformedProducts.length);
+  console.log('📦 Transformed products sample:', transformedProducts[0]);
 
   useEffect(() => {
     const timer = setInterval(() => {

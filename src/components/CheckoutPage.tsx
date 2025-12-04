@@ -137,19 +137,34 @@ export const CheckoutPage = ({ onNavigate }: CheckoutPageProps) => {
       console.log('📦 Creating order with data:', orderData);
       
       // items는 optional이므로 전송하지 않음 (백엔드에서 DB Cart에서 가져옴)
-      const orderResponse = await orderService.createOrder(orderData as any);
-      console.log('✅ Order created:', orderResponse);
+      const rawOrderResponse = await orderService.createOrder(orderData as any);
+      console.log('📦 Raw order response:', rawOrderResponse);
+      
+      // 응답 구조 처리
+      let orderResponse: any = rawOrderResponse;
+      if (rawOrderResponse && typeof rawOrderResponse === 'object' && 'status' in rawOrderResponse && 'data' in rawOrderResponse) {
+        console.log('📦 Detected axios response object, extracting data...');
+        orderResponse = (rawOrderResponse as any).data;
+      }
       
       // orderId 추출
       let actualOrderId = '';
-      if ((orderResponse as any).data?.data?.id) {
-        actualOrderId = (orderResponse as any).data.data.id;
-      } else if ((orderResponse as any).data?.id) {
-        actualOrderId = (orderResponse as any).data.id;
+      if (orderResponse?.success && orderResponse.data) {
+        // { success: true, data: { id: ... } } 형식
+        actualOrderId = orderResponse.data.id || orderResponse.data.orderId || '';
+      } else if (orderResponse?.data?.id) {
+        actualOrderId = orderResponse.data.id;
+      } else if (orderResponse?.id) {
+        actualOrderId = orderResponse.id;
+      } else if (orderResponse?.orderId) {
+        actualOrderId = orderResponse.orderId;
       }
       
+      console.log('📦 Extracted order ID:', actualOrderId);
+      
       if (!actualOrderId) {
-        throw new Error('주문 ID를 받지 못했습니다');
+        console.error('❌ Order response structure:', orderResponse);
+        throw new Error('주문 ID를 받지 못했습니다. 응답 구조를 확인하세요.');
       }
       
       // 결제 방법에 따라 처리

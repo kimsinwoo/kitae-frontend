@@ -77,22 +77,109 @@ export interface OrderResponse {
 
 export const orderService = {
   createOrder: async (data: CreateOrderRequest): Promise<OrderResponse> => {
-    return api.post('/orders', data);
+    const rawResponse = await api.post('/orders', data);
+    
+    console.log('📦 Raw order response:', rawResponse);
+    
+    // axios response 객체인 경우 처리
+    let responseData: any = rawResponse;
+    if (rawResponse && typeof rawResponse === 'object' && 'status' in rawResponse && 'data' in rawResponse) {
+      console.log('📦 Detected axios response object, extracting data...');
+      responseData = (rawResponse as any).data;
+    }
+    
+    // 응답 구조 처리: { success: true, data: {...} } 형식
+    if (responseData?.success && responseData.data) {
+      return {
+        success: true,
+        data: responseData.data
+      };
+    } else if (responseData?.data) {
+      return {
+        success: true,
+        data: responseData.data
+      };
+    } else if (responseData && !responseData.success) {
+      // success가 없는 경우 직접 order 데이터일 수 있음
+      return {
+        success: true,
+        data: responseData
+      };
+    }
+    
+    console.warn('⚠️ Invalid order response format');
+    return {
+      success: false,
+      data: null as any
+    };
   },
 
   getMyOrders: async (params?: {
     page?: number;
     limit?: number;
   }): Promise<OrdersResponse> => {
-    return api.get('/orders', { params });
+    const rawResponse = await api.get('/orders', { params });
+    
+    // axios response 객체인 경우 처리
+    let responseData: any = rawResponse;
+    if (rawResponse && typeof rawResponse === 'object' && 'status' in rawResponse && 'data' in rawResponse) {
+      responseData = (rawResponse as any).data;
+    }
+    
+    // 응답 구조 처리
+    if (responseData?.success && responseData.data) {
+      return responseData;
+    } else if (responseData?.data) {
+      return {
+        success: true,
+        data: responseData.data
+      };
+    }
+    
+    return {
+      success: false,
+      data: { orders: [], pagination: undefined }
+    };
   },
 
   getOrderById: async (orderId: string): Promise<OrderResponse> => {
-    return api.get(`/orders/${orderId}`);
+    const rawResponse = await api.get(`/orders/${orderId}`);
+    
+    // axios response 객체인 경우 처리
+    let responseData: any = rawResponse;
+    if (rawResponse && typeof rawResponse === 'object' && 'status' in rawResponse && 'data' in rawResponse) {
+      responseData = (rawResponse as any).data;
+    }
+    
+    // 응답 구조 처리
+    if (responseData?.success && responseData.data) {
+      return {
+        success: true,
+        data: responseData.data
+      };
+    } else if (responseData?.data) {
+      return {
+        success: true,
+        data: responseData.data
+      };
+    }
+    
+    return {
+      success: false,
+      data: null as any
+    };
   },
 
   cancelOrder: async (orderId: string): Promise<{ success: boolean; message: string }> => {
-    return api.put(`/orders/${orderId}/cancel`);
+    const rawResponse = await api.put(`/orders/${orderId}/cancel`);
+    
+    // axios response 객체인 경우 처리
+    let responseData: any = rawResponse;
+    if (rawResponse && typeof rawResponse === 'object' && 'status' in rawResponse && 'data' in rawResponse) {
+      responseData = (rawResponse as any).data;
+    }
+    
+    return responseData || { success: false, message: '주문 취소 실패' };
   },
 };
 

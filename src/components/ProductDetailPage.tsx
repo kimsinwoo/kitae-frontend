@@ -34,39 +34,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
       const response = await productService.getById(productId);
       console.log('📦 API Response:', response);
       
-      // 실제 응답 구조 처리 (타입 무시)
-      const responseAny: any = response;
-      
-      // Axios 전체 response 객체인 경우 (response.data가 있음)
-      let actualData: any = responseAny;
-      if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
-        actualData = responseAny.data;
-      }
-      
-      // 중첩된 data 구조인 경우
-      if (actualData?.data?.data) {
-        actualData = actualData.data;
-      }
-      
-      // 실제 product 데이터 추출
-      const productData = actualData?.data || actualData;
-      
-      console.log('📦 Actual data:', actualData);
-      console.log('📦 Product data:', productData);
-      console.log('📦 Success:', actualData?.success);
-      
-      if (productData && (actualData?.success || !actualData?.success)) {
-        // images 처리
-        let imageUrl = '';
-        try {
-          if (Array.isArray(productData.images)) {
-            imageUrl = productData.images[0] || '';
-          } else if (typeof productData.images === 'string') {
-            const parsed = JSON.parse(productData.images);
-            imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
-          }
-        } catch (e) {
-          console.warn('Failed to parse images:', e);
+      // product.service.ts에서 이미 정리된 데이터를 반환
+      if (response.success && response.data) {
+        const productData = response.data;
+        
+        if (!productData || !productData.id) {
+          toast.error('상품 데이터를 찾을 수 없습니다');
+          return;
         }
 
         // variants 저장
@@ -88,11 +62,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
         const sizes = sizesSet.size > 0 ? Array.from(sizesSet) : ['S', 'M', 'L'];
         const colors = colorsSet.size > 0 ? Array.from(colorsSet) : ['Black'];
 
+        // images는 product.service.ts에서 이미 정규화됨
+        const imageUrl = Array.isArray(productData.images) && productData.images.length > 0
+          ? productData.images[0]
+          : 'https://via.placeholder.com/400';
+
         const transformedProduct = {
           id: productData.id,
           name: productData.name,
           price: productData.price,
-          image: imageUrl || 'https://via.placeholder.com/400',
+          image: imageUrl,
           category: productData.category?.slug || 'accessories',
           gender: productData.gender || 'unisex',
           sizes,
@@ -106,8 +85,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
         setProduct(transformedProduct);
       } else {
         console.warn('⚠️ Invalid API response format:', response);
-        console.warn('⚠️ Actual data:', actualData);
-        console.warn('⚠️ Product data:', productData);
         toast.error('상품 데이터 형식이 올바르지 않습니다');
       }
     } catch (error: any) {
@@ -145,9 +122,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
       // variant 찾기 (API에서 가져온 variants 사용 또는 API 호출)
       let variantId: string | null = null;
       
-      // 먼저 이미 로드된 variants에서 찾기
+      // 먼저 이미 로드된 variants에서 찾기 (대소문자 구분 없이)
       const existingVariant = productVariants.find(
-        (v: any) => v.size === selectedSize && v.color === selectedColor
+        (v: any) => 
+          v.size?.toLowerCase() === selectedSize?.toLowerCase() && 
+          v.color?.toLowerCase() === selectedColor?.toLowerCase()
       );
       
       if (existingVariant) {
@@ -155,29 +134,45 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ productId,
         console.log('✅ Found variant in loaded variants:', variantId);
       } else {
         // API에서 variant 찾기
-        console.log('🔍 Searching for variant via API...');
+        console.log('🔍 Searching for variant via API...', { productId, selectedSize, selectedColor });
         try {
-          const variantResponse = await productService.getVariantBySizeAndColor(
+          const variantData = await productService.getVariantBySizeAndColor(
             productId,
             selectedSize,
             selectedColor
           );
           
-          // 응답 구조 처리
-          let variantData = variantResponse;
-          if ((variantResponse as any).data?.data) {
-            variantData = (variantResponse as any).data;
-          } else if ((variantResponse as any).data) {
-            variantData = (variantResponse as any).data;
-          }
-          
-          if (variantData?.id || (variantData as any).data?.id) {
-            variantId = variantData?.id || (variantData as any).data?.id;
+          if (variantData?.id) {
+            variantId = variantData.id;
             console.log('✅ Found variant via API:', variantId);
+          } else {
+            console.warn('⚠️ Variant data structure:', variantData);
+            // 사용 가능한 variant 목록 표시
+            const availableOptions = productVariants.length > 0
+              ? productVariants.map((v: any) => `${v.size}/${v.color}`).join(', ')
+              : '없음';
+            toast.error(
+              `사이즈(${selectedSize})와 색상(${selectedColor}) 조합을 찾을 수 없습니다. ` +
+              `사용 가능한 옵션: ${availableOptions}`
+            );
+            return;
           }
         } catch (variantError: any) {
           console.error('❌ Failed to find variant:', variantError);
-          toast.error(`사이즈(${selectedSize})와 색상(${selectedColor}) 조합을 찾을 수 없습니다`);
+          
+          // 404 에러인 경우 사용 가능한 variant 정보 표시
+          if (variantError.response?.status === 404) {
+            const availableVariants = variantError.response?.data?.availableVariants || productVariants;
+            const availableOptions = availableVariants.length > 0
+              ? availableVariants.map((v: any) => `${v.size}/${v.color}`).join(', ')
+              : '없음';
+            toast.error(
+              `사이즈(${selectedSize})와 색상(${selectedColor}) 조합을 찾을 수 없습니다. ` +
+              `사용 가능한 옵션: ${availableOptions}`
+            );
+          } else {
+            toast.error(`사이즈(${selectedSize})와 색상(${selectedColor}) 조합을 찾을 수 없습니다`);
+          }
           return;
         }
       }

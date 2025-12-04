@@ -53,20 +53,21 @@ export const MyPage = ({ onNavigate }: MyPageProps) => {
       
       // Extract products from favorites
       const favoriteProductsData: any[] = [];
-      if (response.data && Array.isArray(response.data)) {
+      if (response.success && response.data && Array.isArray(response.data)) {
         response.data.forEach((fav: any) => {
           if (fav.product) {
-            // Parse images
+            // 이미지 처리 - 배열이거나 문자열일 수 있음
             let imageUrl = '';
-            try {
-              if (Array.isArray(fav.product.images)) {
-                imageUrl = fav.product.images[0] || '';
-              } else if (typeof fav.product.images === 'string') {
+            if (Array.isArray(fav.product.images) && fav.product.images.length > 0) {
+              imageUrl = fav.product.images[0];
+            } else if (typeof fav.product.images === 'string') {
+              try {
                 const parsed = JSON.parse(fav.product.images);
-                imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
+                imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : (parsed || '');
+              } catch (e) {
+                // JSON 파싱 실패 시 문자열 자체를 사용
+                imageUrl = fav.product.images;
               }
-            } catch (e) {
-              console.warn('Failed to parse product images:', e);
             }
 
             favoriteProductsData.push({
@@ -74,6 +75,10 @@ export const MyPage = ({ onNavigate }: MyPageProps) => {
               name: fav.product.name,
               price: fav.product.price,
               image: imageUrl || 'https://via.placeholder.com/400',
+              category: fav.product.category?.slug || 'accessories',
+              gender: fav.product.gender || 'unisex',
+              sizes: ['S', 'M', 'L'],
+              colors: ['Black'],
             });
           }
         });
@@ -115,11 +120,20 @@ export const MyPage = ({ onNavigate }: MyPageProps) => {
           items: order.items?.map((item: any) => ({
             productId: item.productId,
             productName: item.product?.name || '',
-            productImage: Array.isArray(item.product?.images)
-              ? item.product.images[0] || ''
-              : typeof item.product?.images === 'string'
-                ? JSON.parse(item.product.images)[0] || ''
-                : '',
+            productImage: (() => {
+              const images = item.product?.images;
+              if (Array.isArray(images) && images.length > 0) {
+                return images[0];
+              } else if (typeof images === 'string') {
+                try {
+                  const parsed = JSON.parse(images);
+                  return Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : (parsed || '');
+                } catch {
+                  return images;
+                }
+              }
+              return '';
+            })(),
             quantity: item.quantity,
             size: item.variant?.size || '',
             color: item.variant?.color || '',

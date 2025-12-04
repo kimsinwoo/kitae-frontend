@@ -21,58 +21,59 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onNaviga
   
   const loadProducts = async () => {
     try {
-      const category = selectedCategories.length > 0 ? selectedCategories[0] : undefined;
-      const gender = selectedGenders.length > 0 ? selectedGenders[0] : undefined;
+      console.log('🔍 Loading featured products from API...');
       
-      console.log('🔍 Loading products from API...', { category, gender });
-      
-      const response = await productService.getAll({
-        page: 1,
-        limit: 100,
-        category,
-        gender,
-        status: 'active'
-      });
+      // /products/featured 엔드포인트 사용
+      const response = await productService.getFeatured();
       
       console.log('📦 API Response:', response);
+      console.log('📦 Response type:', typeof response);
+      console.log('📦 Response keys:', Object.keys(response || {}));
       
-      // 실제 응답 구조 처리 (타입 무시)
-      const responseAny: any = response;
+      // 응답 구조 처리 - axios response 객체일 수도 있음
+      let responseData: any = response;
       
-      // Axios 전체 response 객체인 경우 (response.data가 있음)
-      let actualData: any = responseAny;
-      if (responseAny?.data && (responseAny?.status || responseAny?.headers)) {
-        actualData = responseAny.data;
+      // axios response 객체인 경우 (status, headers 등이 있으면)
+      if (response && typeof response === 'object' && 'status' in response && 'data' in response) {
+        console.log('📦 Detected axios response object, extracting data...');
+        responseData = (response as any).data;
       }
       
-      // 중첩된 data 구조인 경우
-      if (actualData?.data?.data) {
-        actualData = actualData.data;
+      // 중첩된 data 구조 처리
+      if (responseData?.data && responseData.success !== undefined) {
+        responseData = responseData.data;
       }
       
-      // products 배열 추출
-      const productsArray = actualData?.data?.products || actualData?.products || [];
+      console.log('📦 Processed response data:', responseData);
+      console.log('📦 Is array:', Array.isArray(responseData));
+      console.log('📦 Length:', Array.isArray(responseData) ? responseData.length : 'N/A');
       
-      console.log('📦 Actual data:', actualData);
-      console.log('📦 Products array:', productsArray);
-      console.log('📦 Success:', actualData?.success);
-      console.log('📦 Products count:', productsArray.length);
+      // 배열인 경우 직접 사용
+      let productsArray: any[] = [];
+      if (Array.isArray(responseData)) {
+        productsArray = responseData;
+      } else if (responseData?.success && Array.isArray(responseData.data)) {
+        productsArray = responseData.data;
+      } else if (responseData?.data && Array.isArray(responseData.data)) {
+        productsArray = responseData.data;
+      }
       
-      // products 배열이 있으면 표시 (success 체크 무시)
-      if (Array.isArray(productsArray) && productsArray.length > 0) {
-        console.log(`✅ Found ${productsArray.length} products`);
+      if (productsArray.length > 0) {
+        console.log(`✅ Found ${productsArray.length} featured products`);
+        
+        // 이미지와 variants 변환
         const transformedProducts = productsArray.map((p: any) => {
           // images 처리
           let imageUrl = '';
-          try {
-            if (Array.isArray(p.images)) {
-              imageUrl = p.images[0] || '';
-            } else if (typeof p.images === 'string') {
+          if (Array.isArray(p.images) && p.images.length > 0) {
+            imageUrl = p.images[0];
+          } else if (typeof p.images === 'string') {
+            try {
               const parsed = JSON.parse(p.images);
-              imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
+              imageUrl = Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : (parsed || '');
+            } catch {
+              imageUrl = p.images;
             }
-          } catch (e) {
-            console.warn('Failed to parse images for product:', p.id, e);
           }
 
           // variants에서 중복 제거하여 size와 color 추출
@@ -104,60 +105,22 @@ export const ProductListingPage: React.FC<ProductListingPageProps> = ({ onNaviga
         console.log(`✅ Transformed ${transformedProducts.length} products`);
         setProducts(transformedProducts);
       } else {
-        console.warn('⚠️ Invalid API response format:', response);
-        console.warn('⚠️ Actual data:', actualData);
-        console.warn('⚠️ Products array:', productsArray);
-        console.warn('⚠️ Products length:', productsArray.length);
-        
-        // products가 있으면 일단 표시
-        if (Array.isArray(productsArray) && productsArray.length > 0) {
-          console.log(`✅ Using products array directly: ${productsArray.length} products`);
-          const transformedProducts = productsArray.map((p: any) => {
-            let imageUrl = '';
-            try {
-              if (Array.isArray(p.images)) {
-                imageUrl = p.images[0] || '';
-              } else if (typeof p.images === 'string') {
-                const parsed = JSON.parse(p.images);
-                imageUrl = Array.isArray(parsed) ? parsed[0] : parsed;
-              }
-            } catch (e) {
-              console.warn('Failed to parse images:', e);
-            }
-            // variants에서 중복 제거하여 size와 color 추출
-            const sizesSet = new Set<string>();
-            const colorsSet = new Set<string>();
-            
-            if (p.variants && Array.isArray(p.variants)) {
-              p.variants.forEach((v: any) => {
-                if (v.size) sizesSet.add(v.size);
-                if (v.color) colorsSet.add(v.color);
-              });
-            }
-            
-            const sizes = sizesSet.size > 0 ? Array.from(sizesSet) : ['S', 'M', 'L'];
-            const colors = colorsSet.size > 0 ? Array.from(colorsSet) : ['Black'];
-
-            return {
-              id: p.id,
-              name: p.name,
-              price: p.price,
-              image: imageUrl || 'https://via.placeholder.com/400',
-              category: p.category?.slug || 'accessories',
-              gender: p.gender || 'unisex',
-              sizes,
-              colors,
-            };
-          });
-          setProducts(transformedProducts);
-        } else {
-          toast.error('상품 데이터 형식이 올바르지 않습니다');
-        }
+        console.warn('⚠️ No products found in response');
+        console.warn('⚠️ Response structure:', {
+          responseType: typeof response,
+          responseDataType: typeof responseData,
+          isArray: Array.isArray(responseData),
+          hasData: !!responseData?.data,
+          responseKeys: Object.keys(response || {}),
+          responseDataKeys: Object.keys(responseData || {})
+        });
+        setProducts([]);
       }
     } catch (error: any) {
       console.error('❌ Failed to load products:', error);
       console.error('Error details:', error.response?.data || error.message);
       toast.error(`상품을 불러올 수 없습니다: ${error.message || 'API 연결 실패'}`);
+      setProducts([]);
     }
   };
 
